@@ -2,16 +2,13 @@
 
 let
   cfg = config.programs.inir;
-
   inirSrc = inputs.inir-src;
-  inirRuntime = "$HOME/.local/share/inir";
 
   qmlPath = lib.concatStringsSep ":" [
     "${pkgs.kdePackages.kirigami}/lib/qt-6/qml"
     "${pkgs.kdePackages.kirigami.unwrapped}/lib/qt-6/qml"
     "${pkgs.kdePackages.kirigami-addons}/lib/qt-6/qml"
     "${pkgs.kdePackages.syntax-highlighting}/lib/qt-6/qml"
-
     "${pkgs.qt6.qt5compat}/lib/qt-6/qml"
     "${pkgs.qt6.qtimageformats}/lib/qt-6/qml"
     "${pkgs.qt6.qtmultimedia}/lib/qt-6/qml"
@@ -23,7 +20,6 @@ let
     "${pkgs.kdePackages.kirigami.unwrapped}/lib/qt-6/plugins"
     "${pkgs.kdePackages.kirigami-addons}/lib/qt-6/plugins"
     "${pkgs.kdePackages.syntax-highlighting}/lib/qt-6/plugins"
-
     "${pkgs.qt6.qt5compat}/lib/qt-6/plugins"
     "${pkgs.qt6.qtimageformats}/lib/qt-6/plugins"
     "${pkgs.qt6.qtmultimedia}/lib/qt-6/plugins"
@@ -108,7 +104,7 @@ let
     export QML_IMPORT_PATH="${qmlPath}:$QML_IMPORT_PATH"
     export QT_PLUGIN_PATH="${pluginPath}:$QT_PLUGIN_PATH"
 
-    export INIR_RUNTIME_DIR="$HOME/.config/quickshell/inir"
+    export INIR_RUNTIME_DIR="$HOME/.local/share/inir"
     export INIR_PYTHON="${inirPython}/bin/python3"
     export PATH="$HOME/.local/bin:/etc/profiles/per-user/$USER/bin:${runtimePath}:$PATH"
   '';
@@ -124,6 +120,8 @@ let
     fi
 
     echo "iNiR CLI script not found at $SCRIPT"
+    echo "Try resetting iNiR with:"
+    echo "  rm -rf ~/.local/share/inir && sudo nixos-rebuild switch --flake ~/myNixOS#myNix"
     exit 1
   '';
 in
@@ -135,7 +133,6 @@ in
   config = lib.mkIf cfg.enable {
     home.packages = with pkgs; [
       quickshell
-
       qt6.qt5compat
       qt6.qtimageformats
       qt6.qtmultimedia
@@ -192,39 +189,65 @@ in
       inirCli
     ];
 
-    home.activation.linkINiR = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-      if [ ! -f "$HOME/.local/share/inir/shell.qml" ]; then
-        rm -rf "$HOME/.local/share/inir"
-        mkdir -p "$HOME/.local/share/inir"
+    home.activation.setupINiR = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
+      set -eu
 
-        cp -R ${inirSrc}/. "$HOME/.local/share/inir/"
-        chmod -R u+w "$HOME/.local/share/inir"
+      RUNTIME="$HOME/.local/share/inir"
+
+      # GUI-friendly mode:
+      # Copy iNiR only when missing. This lets GUI settings persist.
+      if [ ! -f "$RUNTIME/shell.qml" ]; then
+        rm -rf "$RUNTIME"
+        mkdir -p "$RUNTIME"
+        cp -R ${inirSrc}/. "$RUNTIME/"
+        chmod -R u+w "$RUNTIME"
       fi
 
+      # Quickshell runtime link.
       rm -rf "$HOME/.config/quickshell/inir"
       mkdir -p "$HOME/.config/quickshell"
-      ln -sfn "$HOME/.local/share/inir" "$HOME/.config/quickshell/inir"
+      ln -sfn "$RUNTIME" "$HOME/.config/quickshell/inir"
 
+      # Niri config link. iNiR owns Niri keybinds/config.
       rm -rf "$HOME/.config/niri"
       mkdir -p "$HOME/.config"
-      ln -sfn "$HOME/.local/share/inir/defaults/niri" "$HOME/.config/niri"
+      ln -sfn "$RUNTIME/defaults/niri" "$HOME/.config/niri"
 
-      mkdir -p "$HOME/.local/share/inir/defaults/niri/config.d"
-
-      cat > "$HOME/.local/share/inir/defaults/niri/config.d/90-user-extra.kdl" <<'KDL'
+      # Niri autostart. No iNiR systemd service.
+      mkdir -p "$RUNTIME/defaults/niri/config.d"
+      cat > "$RUNTIME/defaults/niri/config.d/90-user-extra.kdl" <<'KDL'
 spawn-at-startup "inir" "run"
 KDL
 
-      # Keep iNiR keybinds, but make them call our Home Manager wrapper.
-      if [ -f "$HOME/.local/share/inir/defaults/niri/config.d/70-binds.kdl" ]; then
+      # Keep stock iNiR keybinds, but make any hardcoded launcher call our wrapper.
+      if [ -f "$RUNTIME/defaults/niri/config.d/70-binds.kdl" ]; then
         sed -i \
           -e 's|"/home/[^"]*/\.local/bin/inir"|"inir"|g' \
           -e 's|"/etc/profiles/per-user/[^"]*/bin/inir"|"inir"|g' \
-          "$HOME/.local/share/inir/defaults/niri/config.d/70-binds.kdl"
+          "$RUNTIME/defaults/niri/config.d/70-binds.kdl"
+      fi
+
+      # Apply simple repo overrides.
+      OVERRIDES="/home/imzaa/myNixOS/overrides"
+
+      if [ -f "$OVERRIDES/keybinds.kdl" ]; then
+        cp "$OVERRIDES/keybinds.kdl" \
+           "$RUNTIME/defaults/niri/config.d/70-binds.kdl"
+      fi
+
+      if [ -f "$OVERRIDES/layout.kdl" ]; then
+        cp "$OVERRIDES/layout.kdl" \
+           "$RUNTIME/defaults/niri/config.d/20-layout-and-overview.kdl"
+      fi
+
+      if [ -f "$OVERRIDES/matugen.toml" ]; then
+        mkdir -p "$RUNTIME/dots/.config/matugen"
+        cp "$OVERRIDES/matugen.toml" \
+           "$RUNTIME/dots/.config/matugen/config.toml"
       fi
 
       # Make switchwall use our Nix Python env.
-      SW="$HOME/.local/share/inir/scripts/colors/switchwall.sh"
+      SW="$RUNTIME/scripts/colors/switchwall.sh"
       if [ -f "$SW" ]; then
         sed -i \
           's|_ii_python="$_ii_venv/bin/python3"|_ii_python="''${INIR_PYTHON:-$_ii_venv/bin/python3}"|' \
@@ -235,10 +258,11 @@ KDL
           "$SW" || true
       fi
 
+      # Optional iNiR dot configs.
       for dir in fish foot kitty matugen; do
-        if [ -d "$HOME/.local/share/inir/dots/.config/$dir" ]; then
+        if [ -d "$RUNTIME/dots/.config/$dir" ]; then
           rm -rf "$HOME/.config/$dir"
-          ln -sfn "$HOME/.local/share/inir/dots/.config/$dir" "$HOME/.config/$dir"
+          ln -sfn "$RUNTIME/dots/.config/$dir" "$HOME/.config/$dir"
         fi
       done
 
@@ -257,7 +281,7 @@ KDL
         echo "{}" > "$HOME/.local/state/quickshell/user/generated/colors.json"
       fi
 
-      # No iNiR systemd. Niri autostart owns startup.
+      # Make sure old iNiR systemd service cannot come back.
       rm -f "$HOME/.config/systemd/user/inir.service"
       rm -f "$HOME/.config/systemd/user/"*.wants/inir.service 2>/dev/null || true
     '';
@@ -284,7 +308,7 @@ KDL
       QML2_IMPORT_PATH = qmlPath;
       QML_IMPORT_PATH = qmlPath;
       QT_PLUGIN_PATH = pluginPath;
-      INIR_RUNTIME_DIR = "$HOME/.config/quickshell/inir";
+      INIR_RUNTIME_DIR = "$HOME/.local/share/inir";
     };
   };
 }

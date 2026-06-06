@@ -41,7 +41,7 @@ binds {
     Super+G { spawn "inir" "overlay" "toggle"; }
 
     // iNiR app launcher / overview.
-    Mod+Space repeat=false { spawn "inir" "overview" "toggle"; }
+    Mod+space repeat=false { spawn "inir" "overview" "toggle"; }
 
     // Clipboard history overlay.
     Mod+V { spawn "inir" "clipboard" "toggle"; }
