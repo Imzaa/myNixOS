@@ -11,7 +11,7 @@ This repository only contains my personal NixOS configuration. All upstream proj
 
 Inir to NixOS- 
 
-#IMPORTANT!! 
+# IMPORTANT!! 
 Dont Update via Inir Interface... use this Command
 cd ~/myNixOS
 nix flake lock --update-input inir-src
@@ -21,6 +21,14 @@ To rollback
 cd ~/myNixOS
 
 git checkout -- flake.lock
+sudo nixos-rebuild switch --flake .#myNix
+
+# iNSTALLATION
+
+sudo nixos-generate-config --show-hardware-config > /tmp/hardware.nix
+git clone https://github.com/Imzaa/myNixOS.git ~/myNixOS
+cp /tmp/hardware.nix ~/myNixOS/modules/hosts/myNix/hardware.nix
+cd ~/myNixOS
 sudo nixos-rebuild switch --flake .#myNix
 
 Things that doenst work for now 
