@@ -9,6 +9,8 @@
 
 This repository only contains my personal NixOS configuration. All upstream projects remain under their respective authors and licenses.
 
+Inir to NixOS- IMPORTANT!! Dont Update via Inir Interface... use this Command - cd ~/myNixOS  nix flake lock --update-input inir-src sudo nixos-rebuild switch --flake .#myNix
+
 Things that doenst work for now 
 1) Color Picker
 2) Screen recorder (built in)
