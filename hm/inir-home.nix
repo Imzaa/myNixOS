@@ -193,11 +193,13 @@ in
     ];
 
     home.activation.linkINiR = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
-      rm -rf "$HOME/.local/share/inir"
-      mkdir -p "$HOME/.local/share/inir"
+      if [ ! -f "$HOME/.local/share/inir/shell.qml" ]; then
+        rm -rf "$HOME/.local/share/inir"
+        mkdir -p "$HOME/.local/share/inir"
 
-      cp -R ${inirSrc}/. "$HOME/.local/share/inir/"
-      chmod -R u+w "$HOME/.local/share/inir"
+        cp -R ${inirSrc}/. "$HOME/.local/share/inir/"
+        chmod -R u+w "$HOME/.local/share/inir"
+      fi
 
       rm -rf "$HOME/.config/quickshell/inir"
       mkdir -p "$HOME/.config/quickshell"
