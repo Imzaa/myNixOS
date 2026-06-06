@@ -194,13 +194,17 @@ in
 
       RUNTIME="$HOME/.local/share/inir"
 
-      # GUI-friendly mode:
-      # Copy iNiR only when missing. This lets GUI settings persist.
-      if [ ! -f "$RUNTIME/shell.qml" ]; then
+      SRC_MARKER="$RUNTIME/.nix-inir-src"
+      NEW_SRC="${inirSrc}"
+
+      # Refresh iNiR when missing OR when flake input changed.
+      # This removes the need to manually rm -rf ~/.local/share/inir on update.
+      if [ ! -f "$RUNTIME/shell.qml" ] || [ ! -f "$SRC_MARKER" ] || [ "$(cat "$SRC_MARKER" 2>/dev/null)" != "$NEW_SRC" ]; then
         rm -rf "$RUNTIME"
         mkdir -p "$RUNTIME"
         cp -R ${inirSrc}/. "$RUNTIME/"
         chmod -R u+w "$RUNTIME"
+        echo "$NEW_SRC" > "$SRC_MARKER"
       fi
 
       # Quickshell runtime link.
