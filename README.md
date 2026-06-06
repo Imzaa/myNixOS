@@ -8,3 +8,9 @@
 - [Home Manager](https://github.com/nix-community/home-manager): user configuration management
 
 This repository only contains my personal NixOS configuration. All upstream projects remain under their respective authors and licenses.
+
+Things that doenst work for now 
+1) Color Picker
+2) Screen recorder (built in)
+
+I just find out how powerful reproducability of NixOs is.. this is just something i do on my free times
