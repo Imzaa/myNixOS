@@ -149,6 +149,7 @@
   quickshell
   kitty
   foot
+  libreoffice-fresh
   ];
 
   # Some programs need SUID wrappers, can be configured further or are

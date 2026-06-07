@@ -1,47 +1,49 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_URL="https://github.com/Imzaa/myNixOS.git"
-REPO_DIR="$HOME/myNixOS"
-HOST="myNix"
+REPO_URL="${REPO_URL:-https://github.com/Imzaa/myNixOS.git}"
+HOST="${HOST:-myNix}"
+REPO_DIR="${REPO_DIR:-$HOME/myNixOS}"
+HARDWARE_PATH="modules/hosts/$HOST/hardware.nix"
 
-echo "==> Checking required commands"
+echo "==> iNiR / myNixOS installer"
+echo "Repo: $REPO_URL"
+echo "Host: $HOST"
+echo "Repo dir: $REPO_DIR"
+echo
 
 if ! command -v git >/dev/null 2>&1; then
   echo "git not found. Installing git temporarily with nix shell..."
-  nix shell nixpkgs#git -c bash -c "echo git ready"
+  exec nix shell nixpkgs#git -c "$0" "$@"
 fi
 
-echo "==> Cloning or updating repo"
-
-if [ -d "$REPO_DIR/.git" ]; then
-  cd "$REPO_DIR"
-  git pull
-else
+if [ ! -d "$REPO_DIR/.git" ]; then
+  echo "==> Cloning repo..."
   git clone "$REPO_URL" "$REPO_DIR"
-  cd "$REPO_DIR"
 fi
 
-echo "==> Generating fresh hardware config for this machine"
+cd "$REPO_DIR"
 
-sudo nixos-generate-config --show-hardware-config > /tmp/hardware.nix
+echo "==> Generating hardware config for this machine..."
+mkdir -p "modules/hosts/$HOST"
 
-echo "==> Backing up repo hardware.nix"
-
-if [ -f "$REPO_DIR/modules/hosts/myNix/hardware.nix" ]; then
-  cp "$REPO_DIR/modules/hosts/myNix/hardware.nix" \
-     "$REPO_DIR/modules/hosts/myNix/hardware.nix.bak.$(date +%s)"
+if [ -f "$HARDWARE_PATH" ]; then
+  cp "$HARDWARE_PATH" "$HARDWARE_PATH.backup.$(date +%Y%m%d-%H%M%S)"
 fi
 
-echo "==> Installing this machine's hardware config"
+sudo nixos-generate-config --show-hardware-config > "$HARDWARE_PATH"
 
-cp /tmp/hardware.nix "$REPO_DIR/modules/hosts/myNix/hardware.nix"
-
-echo "==> Rebuilding NixOS"
-
-sudo nixos-rebuild switch --flake "$REPO_DIR#$HOST"
-
-echo "==> Done"
+echo "==> Hardware config written to:"
+echo "$REPO_DIR/$HARDWARE_PATH"
 echo
-echo "Reboot recommended:"
-echo "  sudo reboot"
+
+echo "==> Checking flake..."
+nix flake check
+
+echo "==> Rebuilding system..."
+sudo nixos-rebuild switch --flake ".#$HOST"
+
+echo
+echo "==> Done."
+echo "If iNiR does not restart automatically, run:"
+echo "pkill qs; pkill quickshell; inir run"

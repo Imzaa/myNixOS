@@ -1,0 +1,5 @@
+
+# Machine-specific NixOS hardware configs
+modules/hosts/*/hardware.nix
+modules/hosts/*/_hardware.nix
+**/hardware-configuration.nix

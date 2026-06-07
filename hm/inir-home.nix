@@ -290,6 +290,39 @@ KDL
       rm -f "$HOME/.config/systemd/user/"*.wants/inir.service 2>/dev/null || true
     '';
 
+
+    # Reproducible iNiR config patch.
+    # Keeps ii panel, enables ii weather, and uses bundled iNiR wallpapers directly.
+    home.activation.patchInirConfig = lib.hm.dag.entryAfter [ "setupINiR" ] ''
+      CONFIG="$HOME/.config/illogical-impulse/config.json"
+      INIR_WALLPAPERS="$HOME/.local/share/inir/assets/wallpapers"
+      JQ="${pkgs.jq}/bin/jq"
+
+      if [ -f "$CONFIG" ] && [ -d "$INIR_WALLPAPERS" ]; then
+        tmp="$(mktemp)"
+
+        "$JQ" --arg wp "$INIR_WALLPAPERS" '
+          .panelFamily = "ii"
+          | .wallpapers.directory = $wp
+
+          # Left sidebar wallpaper picker / quick wallpaper
+          | .modules.wallpaperSelector = true
+          | .wallpaperSelector.style = (.wallpaperSelector.style // "grid")
+
+          # ii panel weather
+          | .bar.weather.enable = true
+          | .bar.modules.weather = true
+          | .bar.right = ((.bar.right // []) + ["weather"] | unique)
+          | .bar.modules.right = ((.bar.modules.right // []) + ["weather"] | unique)
+
+          # Sidebar weather/context toggles
+          | .sidebar.widgets.weather = true
+          | .sidebar.widgets.contextCard = true
+          | .sidebar.widgets.showWeatherInContextCard = true
+        ' "$CONFIG" > "$tmp" && mv "$tmp" "$CONFIG"
+      fi
+    '';
+
     home.activation.linkMaterialIconFonts = lib.hm.dag.entryAfter [ "writeBoundary" ] ''
       mkdir -p "$HOME/.local/share/fonts/material-icons"
 
