@@ -31,11 +31,35 @@ if [ -f "$HARDWARE_PATH" ]; then
   cp "$HARDWARE_PATH" "$HARDWARE_PATH.backup.$(date +%Y%m%d-%H%M%S)"
 fi
 
-sudo nixos-generate-config --show-hardware-config > "$HARDWARE_PATH"
+TMP_HW="$(mktemp)"
+
+# Generate to temp first, so failed generation does not destroy hardware.nix
+if ! sudo nixos-generate-config --show-hardware-config > "$TMP_HW"; then
+  echo "ERROR: nixos-generate-config failed. Existing hardware.nix was not overwritten."
+  rm -f "$TMP_HW"
+  exit 1
+fi
+
+# Wrap normal NixOS hardware config as a flake-parts module.
+{
+  echo '{ self, inputs, ... }:'
+  echo ''
+  echo '{'
+  echo '  flake.nixosModules.myNixHardware ='
+  sed 's/^/    /' "$TMP_HW"
+  echo ';'
+  echo '}'
+} > "$HARDWARE_PATH"
+
+rm -f "$TMP_HW"
 
 echo "==> Hardware config written to:"
 echo "$REPO_DIR/$HARDWARE_PATH"
 echo
+
+# Nix flakes only see files known to Git.
+# hardware.nix can still be ignored/not committed, but it must be force-added locally.
+git add -f "$HARDWARE_PATH"
 
 echo "==> Checking flake..."
 nix flake check
