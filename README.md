@@ -24,12 +24,10 @@ git checkout -- flake.lock
 sudo nixos-rebuild switch --flake .#myNix
 
 # iNSTALLATION
-
-sudo nixos-generate-config --show-hardware-config > /tmp/hardware.nix
-git clone https://github.com/Imzaa/myNixOS.git ~/myNixOS
-cp /tmp/hardware.nix ~/myNixOS/modules/hosts/myNix/hardware.nix
+(Installed NixOS Only)
+nix shell nixpkgs#git -c git clone https://github.com/Imzaa/myNixOS.git ~/myNixOS
 cd ~/myNixOS
-sudo nixos-rebuild switch --flake .#myNix
+./install-myNixOS.sh
 
 Things that doenst work for now 
 1) Color Picker
